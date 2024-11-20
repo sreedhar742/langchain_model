@@ -73,19 +73,64 @@ class Csrfexemptsessionauthentication(SessionAuthentication):
     def enforce_csrf(self, request):
         return 
     
-class QueryAPIView(APIView):
-    # @method_decorator(csrf_exempt, name='dispatch')
-    authentication_classes=(Csrfexemptsessionauthentication,BasicAuthentication)
-    def post(self, request, file_id):
-        print(request.parsers)
-        question = request.data.get('question')
+# class QueryAPIView(APIView):
+#     # @method_decorator(csrf_exempt, name='dispatch')
+#     authentication_classes=(Csrfexemptsessionauthentication,BasicAuthentication)
+#     def post(self, request, file_id):
+#         question = request.data.get('question')
         
+#         if not question:
+#             return Response({"error": "No question provided."}, status=status.HTTP_400_BAD_REQUEST)
+#         try:
+#             file_instance = UploadedFile.objects.get(id=file_id, embedding_created=True)
+#             embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+#             vectors = FAISS.load_local(file_instance.embedding_path, embeddings,allow_dangerous_deserialization=True)
+#             retriever = vectors.as_retriever()
+#             prompt_template = ChatPromptTemplate.from_template(
+#                 """
+#                 Answer the question based on the provided context only.
+#                 Please provide the most accurate response based on the question.
+#                 <context>
+#                 {context}
+#                 <context>
+#                 Question: {input}
+#                 """
+#             )
+
+#             # Set up document chain and retrieval chain
+#             document_chain = create_stuff_documents_chain(llm, prompt_template)
+#             retrieval_chain = create_retrieval_chain(retriever, document_chain)            
+#             # response = retriever.retrieve({"input": question})
+#             response = retrieval_chain.invoke({"input": question})
+#             # Return the response
+            
+#             return Response({"question": question, "answer": response['answer']}, status=status.HTTP_200_OK)
+
+#         except UploadedFile.DoesNotExist:
+#             return Response(
+#                 {"error": "File not found or embeddings not created."},
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+#         except Exception as e:
+#             return Response(
+#                 {"error": "An error occurred during processing.", "details": str(e)},
+#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#             )
+
+class QueryAPIView(APIView):
+    authentication_classes = (Csrfexemptsessionauthentication, BasicAuthentication)
+
+    def post(self, request):
+        question = request.data.get('question')
         if not question:
             return Response({"error": "No question provided."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            file_instance = UploadedFile.objects.get(id=file_id, embedding_created=True)
+            # Fetch the most recent file with embeddings created
+            file_instance = UploadedFile.objects.filter(embedding_created=True).latest('id')
+            
             embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-            vectors = FAISS.load_local(file_instance.embedding_path, embeddings,allow_dangerous_deserialization=True)
+            vectors = FAISS.load_local(file_instance.embedding_path, embeddings, allow_dangerous_deserialization=True)
             retriever = vectors.as_retriever()
             prompt_template = ChatPromptTemplate.from_template(
                 """
@@ -100,16 +145,14 @@ class QueryAPIView(APIView):
 
             # Set up document chain and retrieval chain
             document_chain = create_stuff_documents_chain(llm, prompt_template)
-            retrieval_chain = create_retrieval_chain(retriever, document_chain)            
-            # response = retriever.retrieve({"input": question})
+            retrieval_chain = create_retrieval_chain(retriever, document_chain)
             response = retrieval_chain.invoke({"input": question})
-            # Return the response
             
             return Response({"question": question, "answer": response['answer']}, status=status.HTTP_200_OK)
 
         except UploadedFile.DoesNotExist:
             return Response(
-                {"error": "File not found or embeddings not created."},
+                {"error": "No processed files found."},
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:

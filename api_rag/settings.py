@@ -135,6 +135,6 @@ import os
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+import os 
 
-
-API_KEY="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"
+API_KEY=os.getenv("API_KEY")
