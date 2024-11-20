@@ -35,6 +35,8 @@ def getRoutes(request):
     return Response(routes)
  
 class FileUploadAPIView(APIView):
+    def get(self,request):
+        return Response({"message":"Get Request Not allowed"},status=status.HTTP_405_METHOD_NOT_ALLOWED)
     serializer_class=UploadedFileSerializer
     def post(self, request):
         file = request.FILES.get('file')
@@ -63,7 +65,7 @@ class FileUploadAPIView(APIView):
             uploaded_file.embedding_path = faiss_path
             uploaded_file.embedding_created = True
             uploaded_file.save()
-            return Response({"message": f"File uploaded {uploaded_file.id} and processed successfully."}, status=status.HTTP_201_CREATED)
+            return Response({"message": f"File uploaded {uploaded_file.id} and processed successfully.","File processed":f"{uploaded_file.embedding_created}","uploaded_time":{uploaded_file.created_at}}, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
@@ -119,7 +121,8 @@ class Csrfexemptsessionauthentication(SessionAuthentication):
 
 class QueryAPIView(APIView):
     authentication_classes = (Csrfexemptsessionauthentication, BasicAuthentication)
-
+    def get(self,request):
+        return Response({"message":"Get Request is not allowed"},status=status.HTTP_405_METHOD_NOT_ALLOWED)
     def post(self, request):
         question = request.data.get('question')
         if not question:
