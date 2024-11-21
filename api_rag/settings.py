@@ -41,8 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
 ]
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOWED_ORIGINS = [
+CROSS_ALLOW_ALL_ORIGINS = True
+CROSS_ALLOW_ORIGINS = [
     "http://localhost:3000",
 ]
 MIDDLEWARE = [
@@ -76,7 +76,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'api_rag.wsgi.application'
-CORS_ALLOW_ALL_ORIGINS = True
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases

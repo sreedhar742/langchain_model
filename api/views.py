@@ -37,6 +37,7 @@ def getRoutes(request):
 class FileUploadAPIView(APIView):
     def get(self,request):
         return Response({"message":"Get Request Not allowed"},status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    
     serializer_class=UploadedFileSerializer
     def post(self, request):
         file = request.FILES.get('file')
@@ -123,6 +124,8 @@ class QueryAPIView(APIView):
     authentication_classes = (Csrfexemptsessionauthentication, BasicAuthentication)
     def get(self,request):
         return Response({"message":"Get Request is not allowed"},status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    
+    
     def post(self, request):
         question = request.data.get('question')
         if not question:
