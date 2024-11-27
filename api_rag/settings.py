@@ -41,9 +41,17 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
 ]
-CROSS_ALLOW_ALL_ORIGINS = True
-CROSS_ALLOW_ORIGINS = [
-    "http://localhost:3000",
+CORS_ALLOW_ALL_ORIGINS = True  # Use this for testing but restrict in production
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # React app running on localhost
+]
+CORS_ALLOW_METHODS = [
+    "GET",
+    "POST",
+    "PUT",
+    "DELETE",
+    "OPTIONS",
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -117,7 +125,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kolkata'
 
 USE_I18N = True
 

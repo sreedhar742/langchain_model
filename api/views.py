@@ -29,7 +29,7 @@ FAISS_INDEX_DIR = "faiss_indexes/"
 def getRoutes(request):
     routes = [
         '/upload',
-        '/query/<int:file_number>/',
+        '/query/',
         '/files'
     ]
     return Response(routes)
@@ -66,7 +66,7 @@ class FileUploadAPIView(APIView):
             uploaded_file.embedding_path = faiss_path
             uploaded_file.embedding_created = True
             uploaded_file.save()
-            return Response({"message": f"File uploaded {uploaded_file.id} and processed successfully.","File processed":f"{uploaded_file.embedding_created}","uploaded_time":{uploaded_file.created_at}}, status=status.HTTP_201_CREATED)
+            return Response({"message": f"File uploaded and processed successfully.","File processed":f"{uploaded_file.embedding_created}","uploaded_time":{uploaded_file.created_at}}, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
@@ -120,52 +120,52 @@ class Csrfexemptsessionauthentication(SessionAuthentication):
 #                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
 #             )
 
-class QueryAPIView(APIView):
-    authentication_classes = (Csrfexemptsessionauthentication, BasicAuthentication)
-    def get(self,request):
-        return Response({"message":"Get Request is not allowed"},status=status.HTTP_405_METHOD_NOT_ALLOWED)
+# class QueryAPIView(APIView):
+#     authentication_classes = (Csrfexemptsessionauthentication, BasicAuthentication)
+#     def get(self,request):
+#         return Response({"message":"Get Request is not allowed"},status=status.HTTP_405_METHOD_NOT_ALLOWED)
     
     
-    def post(self, request):
-        question = request.data.get('question')
-        if not question:
-            return Response({"error": "No question provided."}, status=status.HTTP_400_BAD_REQUEST)
+#     def post(self, request):
+#         question = request.data.get('question')
+#         if not question:
+#             return Response({"error": "No question provided."}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            # Fetch the most recent file with embeddings created
-            file_instance = UploadedFile.objects.filter(embedding_created=True).latest('id')
+#         try:
+#             # Fetch the most recent file with embeddings created
+#             file_instance = UploadedFile.objects.filter(embedding_created=True).latest('id')
             
-            embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-            vectors = FAISS.load_local(file_instance.embedding_path, embeddings, allow_dangerous_deserialization=True)
-            retriever = vectors.as_retriever()
-            prompt_template = ChatPromptTemplate.from_template(
-                """
-                Answer the question based on the provided context only.
-                Please provide the most accurate response based on the question.
-                <context>
-                {context}
-                <context>
-                Question: {input}
-                """
-            )
+#             embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+#             vectors = FAISS.load_local(file_instance.embedding_path, embeddings, allow_dangerous_deserialization=True)
+#             retriever = vectors.as_retriever()
+#             prompt_template = ChatPromptTemplate.from_template(
+#                 """
+#                 Answer the question based on the provided context only.
+#                 Please provide the most accurate response based on the question.
+#                 <context>
+#                 {context}
+#                 <context>
+#                 Question: {input}
+#                 """
+#             )
 
-            # Set up document chain and retrieval chain
-            document_chain = create_stuff_documents_chain(llm, prompt_template)
-            retrieval_chain = create_retrieval_chain(retriever, document_chain)
-            response = retrieval_chain.invoke({"input": question})
+#             # Set up document chain and retrieval chain
+#             document_chain = create_stuff_documents_chain(llm, prompt_template)
+#             retrieval_chain = create_retrieval_chain(retriever, document_chain)
+#             response = retrieval_chain.invoke({"input": question})
             
-            return Response({"question": question, "answer": response['answer']}, status=status.HTTP_200_OK)
+#             return Response({"question": question, "answer": response['answer']}, status=status.HTTP_200_OK)
 
-        except UploadedFile.DoesNotExist:
-            return Response(
-                {"error": "No processed files found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            return Response(
-                {"error": "An error occurred during processing.", "details": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+#         except UploadedFile.DoesNotExist:
+#             return Response(
+#                 {"error": "No processed files found."},
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+#         except Exception as e:
+#             return Response(
+#                 {"error": "An error occurred during processing.", "details": str(e)},
+#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#             )
 
 
 class FileListAPIView(APIView):
@@ -177,3 +177,55 @@ class FileListAPIView(APIView):
 
 
 
+from django.utils import timezone
+from datetime import timedelta
+
+class QueryAPIView(APIView):
+    authentication_classes = (Csrfexemptsessionauthentication, BasicAuthentication)
+    
+    def get(self, request):
+        return Response({"message": "GET Request is not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def post(self, request):
+        question = request.data.get('question')
+        if not question:
+            return Response({"error": "No question provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if any file has been uploaded and processed (embedding_created=True)
+        file_instance = UploadedFile.objects.filter(embedding_created=True).latest('created_at')
+
+        if not file_instance:
+            return Response({"error": "No file has been uploaded or processed. Please upload a file first."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Time validation: Check if file is uploaded within the last 2 hours
+        time_limit = timezone.now() - timedelta(minutes=2)
+        if file_instance.created_at < time_limit:
+            return Response({"error": "Please upload a newfile."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+            vectors = FAISS.load_local(file_instance.embedding_path, embeddings, allow_dangerous_deserialization=True)
+            retriever = vectors.as_retriever()
+            prompt_template = ChatPromptTemplate.from_template(
+                """
+                Answer the question based on the provided context only.
+                Please provide the most accurate response based on the question.
+                <context>
+                {context}
+                </context>
+                Question: {input}
+                """
+            )
+
+            # Set up document chain and retrieval chain
+            document_chain = create_stuff_documents_chain(llm, prompt_template)
+            retrieval_chain = create_retrieval_chain(retriever, document_chain)
+            response = retrieval_chain.invoke({"input": question})
+
+            return Response({"question": question, "answer": response['answer']}, status=status.HTTP_200_OK)
+
+        except UploadedFile.DoesNotExist:
+            return Response({"error": "No processed files found."}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({"error": "An error occurred during processing.", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
